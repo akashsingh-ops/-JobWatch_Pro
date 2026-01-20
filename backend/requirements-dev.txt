@@ -1,0 +1,29 @@
+# Development requirements (SQLite instead of PostgreSQL)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database dependencies (SQLite for development)
+sqlalchemy==2.0.23
+aiosqlite==0.19.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# Elasticsearch
+elasticsearch==8.11.0
+
+# Redis for caching/sessions
+redis==5.0.1
+
+# Additional utilities
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+httpx==0.25.2
+
+# Development
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
