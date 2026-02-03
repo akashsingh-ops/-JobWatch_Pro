@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { recordsApi } from '@/api/records';
-import { RecordFilters } from '@/types/records';
+import { recordsService, RecordsFilters } from '@/services/api/records';
 
-export const useRecords = (filters: RecordFilters = {}) => {
+export const useRecords = (filters: RecordsFilters = {}) => {
   return useQuery({
     queryKey: ['records', filters],
-    queryFn: () => recordsApi.getRecords(filters),
+    queryFn: () => recordsService.getRecords(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
@@ -14,15 +12,24 @@ export const useRecords = (filters: RecordFilters = {}) => {
 export const useRecord = (id: string) => {
   return useQuery({
     queryKey: ['record', id],
-    queryFn: () => recordsApi.getRecord(id),
+    queryFn: () => recordsService.getRecord(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 
 export const useCategories = () => {
   return useQuery({
     queryKey: ['categories'],
-    queryFn: recordsApi.getCategories,
+    queryFn: recordsService.getCategories,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+};
+
+export const useRecordSources = () => {
+  return useQuery({
+    queryKey: ['record-sources'],
+    queryFn: recordsService.getSources,
     staleTime: 30 * 60 * 1000, // 30 minutes
   });
 };

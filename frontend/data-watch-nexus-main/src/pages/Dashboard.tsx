@@ -7,9 +7,9 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { JobCard } from '@/components/jobs/JobCard';
 import { JobSkeleton } from '@/components/jobs/JobSkeleton';
-import { useJobs, useJobTypes, useSaveJob } from '@/hooks/useJobs';
+import { useJobs, useJobTypes, useSaveJob, useJobRecommendations } from '@/hooks/useJobs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Filter, FileText, AlertCircle, Briefcase, MapPin, DollarSign } from 'lucide-react';
+import { Search, Filter, FileText, AlertCircle, Briefcase, MapPin, DollarSign, Sparkles, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Dashboard: React.FC = () => {
@@ -40,6 +40,7 @@ const Dashboard: React.FC = () => {
   });
 
   const { data: jobTypes } = useJobTypes();
+  const { data: recommendationsData } = useJobRecommendations(6);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters(prev => ({ ...prev, search: e.target.value, page: 1 }));
@@ -226,6 +227,50 @@ const Dashboard: React.FC = () => {
               </div>
             )}
           </>
+        )}
+
+        {/* Job Recommendations Section */}
+        {recommendationsData && recommendationsData.recommendations.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-2 rounded-full">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold text-primary">Recommended for You</h2>
+              </div>
+              <p className="text-muted-foreground">Based on your profile and preferences</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {recommendationsData.recommendations.slice(0, 6).map((job, index) => (
+                <motion.div
+                  key={`rec-${job.job.id}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <JobCard
+                    job={job.job}
+                    onClick={() => handleJobClick(job.job.id)}
+                    onSave={() => handleSaveJob(job.job.id)}
+                  />
+                </motion.div>
+              ))}
+            </div>
+
+            {recommendationsData.recommendations.length > 6 && (
+              <div className="text-center">
+                <Button variant="outline" className="btn-outline">
+                  View More Recommendations
+                  <TrendingUp className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </motion.div>
         )}
       </motion.div>
     </div>

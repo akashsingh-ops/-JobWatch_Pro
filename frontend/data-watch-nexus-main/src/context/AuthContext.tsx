@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthContextType } from '@/types/auth';
-import { apiClient } from '@/api/client';
+import { authService } from '@/services/api/auth';
+import { handleApiError } from '@/utils/api';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -32,31 +33,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await apiClient.get('/auth/me');
-      setUser(response.data);
+      const user = await authService.getCurrentUser();
+      setUser(user);
     } catch (error) {
+      console.error('Auth check failed:', error);
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
-    const response = await apiClient.post('/auth/login', { email, password });
-    const { token, user } = response.data;
-    
-    localStorage.setItem('token', token);
-    setUser(user);
-    return user;
+    try {
+      const authData = await authService.login({ email, password });
+      localStorage.setItem('token', authData.token);
+      localStorage.setItem('user', JSON.stringify(authData.user));
+      setUser(authData.user);
+      return authData.user;
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw new Error(handleApiError(error));
+    }
   };
 
   const register = async (email: string, password: string, name: string) => {
-    const response = await apiClient.post('/auth/register', { email, password, name });
-    const { token, user } = response.data;
-    
-    localStorage.setItem('token', token);
-    setUser(user);
-    return user;
+    try {
+      const authData = await authService.register({ email, password, name });
+      localStorage.setItem('token', authData.token);
+      localStorage.setItem('user', JSON.stringify(authData.user));
+      setUser(authData.user);
+      return authData.user;
+    } catch (error) {
+      console.error('Registration failed:', error);
+      throw new Error(handleApiError(error));
+    }
   };
 
   const logout = () => {
