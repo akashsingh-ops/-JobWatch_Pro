@@ -1,12 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { useJob, useSaveJob } from '@/hooks/useJobs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { useJob, useSaveJob, useApplyForJob } from '@/hooks/useJobs';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { 
   ArrowLeft, 
   MapPin, 
@@ -27,8 +32,17 @@ const JobDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { data: job, isLoading, error } = useJob(id!);
   const saveJobMutation = useSaveJob();
+  const applyJobMutation = useApplyForJob();
+
+  // Application form state
+  const [applicationData, setApplicationData] = useState({
+    cover_letter: '',
+    expected_salary: '',
+  });
+  const [isApplicationDialogOpen, setIsApplicationDialogOpen] = useState(false);
 
   const handleSaveJob = async () => {
     if (!job) return;
@@ -48,11 +62,40 @@ const JobDetail: React.FC = () => {
     }
   };
 
-  const handleApply = () => {
-    if (job?.applicationUrl) {
-      window.open(job.applicationUrl, '_blank');
-    } else if (job?.applyEmail) {
-      window.open(`mailto:${job.applyEmail}?subject=Application for ${job.title}`, '_blank');
+  const handleApply = async () => {
+    if (!job || !user) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication required',
+        description: 'Please log in to apply for jobs.',
+      });
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const result = await applyJobMutation.mutateAsync({
+        jobId: job.id,
+        applicationData: {
+          cover_letter: applicationData.cover_letter || undefined,
+          expected_salary: applicationData.expected_salary ? parseFloat(applicationData.expected_salary) : undefined,
+        }
+      });
+
+      toast({
+        title: 'Application submitted!',
+        description: 'Your job application has been submitted successfully.',
+      });
+
+      setIsApplicationDialogOpen(false);
+      setApplicationData({ cover_letter: '', expected_salary: '' });
+
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Application failed',
+        description: error?.message || 'Failed to submit application. Please try again.',
+      });
     }
   };
 
@@ -172,27 +215,85 @@ const JobDetail: React.FC = () => {
               
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 lg:min-w-fit">
-                <Button 
+                <Button
                   onClick={handleSaveJob}
-                  variant="outline" 
+                  variant="outline"
                   className="flex items-center"
                   disabled={saveJobMutation.isPending}
                 >
-                  <Heart 
-                    className={`mr-2 h-4 w-4 ${job.saved ? 'fill-primary text-primary' : ''}`} 
+                  <Heart
+                    className={`mr-2 h-4 w-4 ${job.saved ? 'fill-primary text-primary' : ''}`}
                   />
-                  {job.saved ? 'Saved' : 'Save Job'}
+                  {saveJobMutation.isPending ? 'Saving...' : job.saved ? 'Saved' : 'Save Job'}
                 </Button>
-                
-                <Button 
-                  onClick={handleApply}
-                  className="btn-gradient flex items-center"
-                  disabled={!job.applicationUrl && !job.applyEmail}
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Apply Now
-                </Button>
-                
+
+                {/* Job Application Dialog */}
+                <Dialog open={isApplicationDialogOpen} onOpenChange={setIsApplicationDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      className="btn-gradient flex items-center"
+                      disabled={applyJobMutation.isPending}
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {applyJobMutation.isPending ? 'Applying...' : 'Apply Now'}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Apply for {job.title}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cover-letter">Cover Letter (Optional)</Label>
+                        <Textarea
+                          id="cover-letter"
+                          placeholder="Tell us why you're interested in this position..."
+                          value={applicationData.cover_letter}
+                          onChange={(e) => setApplicationData(prev => ({
+                            ...prev,
+                            cover_letter: e.target.value
+                          }))}
+                          rows={4}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="expected-salary">Expected Salary (Optional)</Label>
+                        <Input
+                          id="expected-salary"
+                          type="number"
+                          placeholder="Enter your expected salary"
+                          value={applicationData.expected_salary}
+                          onChange={(e) => setApplicationData(prev => ({
+                            ...prev,
+                            expected_salary: e.target.value
+                          }))}
+                        />
+                      </div>
+
+                      <div className="bg-muted p-3 rounded-lg text-sm text-muted-foreground">
+                        <p>Your application will be submitted directly to {job.company}. They will review your profile and get back to you.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsApplicationDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleApply}
+                        disabled={applyJobMutation.isPending}
+                        className="btn-gradient"
+                      >
+                        {applyJobMutation.isPending ? 'Submitting...' : 'Submit Application'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
                 <Button variant="ghost" size="sm">
                   <Share2 className="h-4 w-4" />
                 </Button>
@@ -341,22 +442,76 @@ const JobDetail: React.FC = () => {
               </div>
               
               <div className="flex gap-3">
-                <Button 
+                <Button
                   onClick={handleSaveJob}
                   variant="outline"
                   disabled={saveJobMutation.isPending}
                 >
                   <Heart className={`mr-2 h-4 w-4 ${job.saved ? 'fill-primary text-primary' : ''}`} />
-                  {job.saved ? 'Saved' : 'Save'}
+                  {saveJobMutation.isPending ? 'Saving...' : job.saved ? 'Saved' : 'Save'}
                 </Button>
-                <Button 
-                  onClick={handleApply}
-                  className="btn-gradient"
-                  disabled={!job.applicationUrl && !job.applyEmail}
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Apply Now
-                </Button>
+
+                <Dialog open={isApplicationDialogOpen} onOpenChange={setIsApplicationDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      className="btn-gradient"
+                      disabled={applyJobMutation.isPending}
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {applyJobMutation.isPending ? 'Applying...' : 'Apply Now'}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Apply for {job.title}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cover-letter-mobile">Cover Letter (Optional)</Label>
+                        <Textarea
+                          id="cover-letter-mobile"
+                          placeholder="Tell us why you're interested in this position..."
+                          value={applicationData.cover_letter}
+                          onChange={(e) => setApplicationData(prev => ({
+                            ...prev,
+                            cover_letter: e.target.value
+                          }))}
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="expected-salary-mobile">Expected Salary (Optional)</Label>
+                        <Input
+                          id="expected-salary-mobile"
+                          type="number"
+                          placeholder="Enter your expected salary"
+                          value={applicationData.expected_salary}
+                          onChange={(e) => setApplicationData(prev => ({
+                            ...prev,
+                            expected_salary: e.target.value
+                          }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsApplicationDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleApply}
+                        disabled={applyJobMutation.isPending}
+                        className="btn-gradient"
+                      >
+                        {applyJobMutation.isPending ? 'Submitting...' : 'Submit Application'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
           </CardContent>
