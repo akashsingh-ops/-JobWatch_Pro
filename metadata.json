@@ -1,0 +1,6 @@
+{
+  "name": "JobWatch Pro",
+  "description": "Professional data alerts and job monitoring dashboard",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
